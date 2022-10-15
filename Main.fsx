@@ -1,42 +1,59 @@
-let dotProduct (a : list<int>) (b : list<int>) : int =
-    List.map2 ( * ) a b
+/// 2つのベクトルの内積
+let dotProduct (vecA : list<int>) (vecB : list<int>) : int =
+    List.map2 ( * ) vecA vecB
     |> List.sum
 
-let magnitude (rs : list<int>) : float =
-    rs
-    |> List.map (fun r -> float r ** 2)
-    |> List.sum
+/// ベクトルの大きさ
+let magnitude (vec : list<int>) : float =
+    vec
+    |> List.sumBy (fun elem -> elem * elem)
+    |> float
     |> sqrt
 
-let cosineSimilarity (a : list<int>) (b : list<int>) : float =
-    let magnitudeA = magnitude a
-    let magnitudeB = magnitude b
-    if magnitudeA = 0. || magnitudeB = 0.
-    then -1.
-    else float (dotProduct a b) / (magnitudeA * magnitudeB)
+/// 2つのベクトルのコサイン類似度
+let cosineSimilarity (vecA : list<int>) (vecB : list<int>) : float =
+    let magnitudeA = magnitude vecA
+    let magnitudeB = magnitude vecB
+    if magnitudeA = 0. || magnitudeB = 0. then
+        -1.
+    else
+        float (dotProduct vecA vecB) / (magnitudeA * magnitudeB)
 
-let predictRate (user : int) (item : int) (ratings: list<list<int>>) : float =
-    ratings
-    |> List.mapi (fun userIdx items -> (userIdx, items))
-    |> List.choose (fun (userIdx, items) ->
-        if userIdx = user
-        then None
-        else
-            Some (cosineSimilarity ratings.[user] items * (float items.[item])))
-    |> List.sum
+/// 加重平均
+let weightedAverage (weights : seq<float>) (values : seq<float>) : float =
+    let sumOfWeights = Seq.sum weights
+    let sum =
+        Seq.map2 ( * ) weights values
+        |> Seq.sum
+    sum / sumOfWeights
+
+let predictRating (userIdx : int) (itemIdx : int) (userRatings: list<list<int>>) : float =
+    let ratings =
+        seq {
+            for otherUserIdx in 0 .. List.length userRatings - 1 do
+                if otherUserIdx <> userIdx then
+                    let rating = userRatings.[otherUserIdx].[itemIdx]
+                    yield float rating
+        }
+    let weights =
+        seq {
+            for otherUserIdx in 0 .. List.length userRatings - 1 do
+                if otherUserIdx <> userIdx then
+                    let cosSim = cosineSimilarity userRatings.[userIdx] userRatings.[otherUserIdx]
+                    yield cosSim + 1.
+        }
+    weightedAverage weights ratings
 
 let a = [1; 2; 5; 0]
 let b = [2; 0; 4; 3]
 let c = [5; 3; 4; 4]
+let ratings = [a; b; c]
+printfn "%A" ratings
 
 let simAB = cosineSimilarity a b
 let simAC = cosineSimilarity a c
 printfn "a & b: %A" simAB
 printfn "a & c: %A" simAC
 
-let ratings = [a; b; c]
-printfn "%A" ratings
-
-let k = 1. / (abs simAB + abs simAC)
-k * predictRate 0 3 ratings
+predictRating 0 3 ratings
 |> printfn "predicted (0, 3): %A"
