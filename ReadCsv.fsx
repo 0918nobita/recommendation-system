@@ -91,20 +91,31 @@ let () =
 
     let transaction = conn.BeginTransaction()
 
+    use command = conn.CreateCommand()
+    command.CommandText <- "INSERT INTO movies(id, title) VALUES(@id, @title)"
+
+    let idParam = command.CreateParameter()
+    idParam.ParameterName <- "@id"
+    ignore <| command.Parameters.Add(idParam)
+
+    let titleParam = command.CreateParameter()
+    titleParam.ParameterName <- "@title"
+    ignore <| command.Parameters.Add(titleParam)
+
     let mutable shouldContinue = true
 
     while shouldContinue do
         let line = sr.ReadLine()
+
         if line = null then
             shouldContinue <- false
         else
             match csvLine line with
             | Some ((id_, [title; _genre]), "") ->
-                use command = conn.CreateCommand()
-                command.CommandText <- "INSERT INTO movies(id, title) VALUES(@id, @title)"
-                ignore <| command.Parameters.AddWithValue("id", int id_)
-                ignore <| command.Parameters.AddWithValue("title", title)
+                idParam.Value <- int id_
+                titleParam.Value <- title
                 ignore <| command.ExecuteNonQuery()
+
             | _ -> failwith "Invalid input"
 
     transaction.Commit()
