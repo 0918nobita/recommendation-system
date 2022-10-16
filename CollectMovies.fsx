@@ -4,7 +4,6 @@
 #r "nuget: Microsoft.Data.Sqlite.Core"
 
 open Microsoft.Data.Sqlite
-open System.IO
 
 open ReadCsv
 
@@ -19,12 +18,6 @@ let () =
 
     createTable conn
 
-    use fs = new FileStream("ml-latest/movies.csv", FileMode.Open)
-
-    use bs = new BufferedStream(fs)
-
-    use sr = new StreamReader(bs)
-
     let transaction = conn.BeginTransaction()
 
     use command = conn.CreateCommand()
@@ -38,12 +31,14 @@ let () =
     titleParam.ParameterName <- "@title"
     ignore <| command.Parameters.Add(titleParam)
 
-    readCsvLines sr (fun cells ->
+    readCsvLines "ml-latest/movies.csv" (fun progress cells ->
         match cells with
-        | (id_, [title; _genre]) ->
-            idParam.Value <- int id_
+        | (movieId, [title; _genre]) ->
+            idParam.Value <- movieId
             titleParam.Value <- title
             ignore <| command.ExecuteNonQuery()
+
+            printfn "Processing... (%f%%)" progress
 
         | _ -> failwith "Invalid input")
 

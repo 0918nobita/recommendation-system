@@ -30,19 +30,30 @@ let csvLine =
     (quotedCell <|> rawCell)
     .>>. many (singleChar ((=) ',') .>>. (quotedCell <|> rawCell) |>> snd)
 
-let readCsvLines (fileReader: StreamReader) (operation: string * list<string> -> unit) =
-    let firstLine = fileReader.ReadLine()
+let readCsvLines (filePath: string) (operation: float -> string * list<string> -> unit) =
+    let bytes = FileInfo(filePath).Length
+
+    use fs = new FileStream(filePath, FileMode.Open)
+
+    use bs = new BufferedStream(fs)
+
+    use sr = new StreamReader(bs)
+
+    let firstLine = sr.ReadLine()
     if firstLine = null then
         ()
     else
         let mutable shouldContinue = true
 
         while shouldContinue do
-            let line = fileReader.ReadLine()
+            let line = sr.ReadLine()
 
             if line = null then
                 shouldContinue <- false
             else
                 match csvLine line with
-                | Some (cells, "") -> operation cells
+                | Some (cells, "") ->
+                    let pos = sr.BaseStream.Position
+                    let progress = (float pos) / (float bytes) * 100.
+                    operation progress cells
                 | _ -> failwith "Invalid input"
