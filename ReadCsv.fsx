@@ -2,7 +2,6 @@
 #r "nuget: Microsoft.Data.Sqlite.Core"
 
 open Microsoft.Data.Sqlite
-
 open System.IO
 
 let charsToString (chars: list<char>) =
@@ -68,12 +67,15 @@ let csvLine =
     (quotedCell <|> rawCell)
     .>>. many (singleChar ((=) ',') .>>. (quotedCell <|> rawCell) |>> snd)
 
-let () =
-    use conn = new SqliteConnection("Data Source=test.sqlite")
-    conn.Open()
+let createTable (conn: SqliteConnection) =
     use command = conn.CreateCommand()
     command.CommandText <- "CREATE TABLE IF NOT EXISTS movies(id int, title text)"
     ignore <| command.ExecuteNonQuery()
+
+let () =
+    use conn = new SqliteConnection("Data Source=test.sqlite")
+    conn.Open()
+    createTable conn
 
     use fs = new FileStream("ml-latest/movies.csv", FileMode.Open)
 
@@ -87,6 +89,8 @@ let () =
         printfn "The input file is empty."
         exit 0
 
+    let transaction = conn.BeginTransaction()
+
     let mutable shouldContinue = true
 
     while shouldContinue do
@@ -94,4 +98,13 @@ let () =
         if line = null then
             shouldContinue <- false
         else
-            printfn "%A" (Option.get (csvLine line))
+            match csvLine line with
+            | Some ((id_, [title; _genre]), "") ->
+                use command = conn.CreateCommand()
+                command.CommandText <- "INSERT INTO movies(id, title) VALUES(@id, @title)"
+                ignore <| command.Parameters.AddWithValue("id", int id_)
+                ignore <| command.Parameters.AddWithValue("title", title)
+                ignore <| command.ExecuteNonQuery()
+            | _ -> failwith "Invalid input"
+
+    transaction.Commit()
