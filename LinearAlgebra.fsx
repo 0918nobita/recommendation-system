@@ -1,49 +1,39 @@
 type Scalar<'a> = Scalar of 'a
 
+exception InvalidShape
+
 exception DimensionMismatch
 
-type Vector<'T> =
-    | Vec of list<'T>
+type Vector<'T>(elems: 'T[]) =
+    let length = Array.length elems
 
-    static member inline length (Vec elems) : int =
-        List.length elems
+    do if length = 0 then raise InvalidShape
 
-    static member inline sameLength (a: Vector< ^t>) (b: Vector< ^t>) : bool =
-        Vector.length< ^t> a = Vector.length< ^t> b
+    member _.Length = length
+
+    member _.Elements = elems
 
     static member inline (+) (a: Vector< ^t>, b: Vector< ^t>) : Vector< ^t> =
-        if not (Vector.sameLength< ^t> a b) then raise DimensionMismatch
+        if a.Length <> b.Length then raise DimensionMismatch
 
-        let (Vec a) = a
-        let (Vec b) = b
-
-        List.map2 (+) a b
-        |> Vec
+        Array.map2 (+) a.Elements b.Elements
+        |> Vector
 
     static member inline (-) (a: Vector< ^t>, b: Vector< ^t>) : Vector< ^t> =
-        if not (Vector.sameLength< ^t> a b) then raise DimensionMismatch
+        if a.Length <> b.Length then raise DimensionMismatch
 
-        let (Vec a) = a
-        let (Vec b) = b
+        Array.map2 (-) a.Elements b.Elements
+        |> Vector
 
-        List.map2 (-) a b
-        |> Vec
+    static member inline (*) (a: Vector< ^t>, Scalar b: Scalar< ^t>) : Vector< ^t> =
+        a.Elements
+        |> Array.map (fun a' -> a' * b)
+        |> Vector
 
-    static member inline (*) (
-        Vec a: Vector< ^t>,
-        Scalar b: Scalar< ^t>
-    ) : Vector< ^t> =
-        a
-        |> List.map (fun a' -> a' * b)
-        |> Vec
-
-    static member inline (*) (
-        Scalar a: Scalar< ^t>,
-        Vec b: Vector< ^t>
-    ) : Vector< ^t> =
-        b
-        |> List.map ((*) a)
-        |> Vec
+    static member inline (*) (Scalar a: Scalar< ^t>, b: Vector< ^t>) : Vector< ^t> =
+        b.Elements
+        |> Array.map ((*) a)
+        |> Vector
 
 type Shape = Shape of rows: int * cols: int
 
@@ -51,17 +41,20 @@ module Shape =
     let inline rows (Shape (rows, _)) = rows
     let inline cols (Shape (_, cols)) = cols
 
-exception InvalidShape
+type Matrix<'T>(rows: array<'T[]>) =
+    let numRows = Array.length rows
 
-type Matrix<'T>(rows: list<list<'T>>) =
-    let numRows = List.length rows
-    let numCols = List.length (List.head rows)
+    do if Array.isEmpty rows then raise InvalidShape
+    let numCols = Array.length (rows.[0])
 
     do for row in rows do
-        if List.length row <> numCols then raise InvalidShape
+        if Array.length row <> numCols then raise InvalidShape
 
     override _.ToString() =
-        sprintf "%A" rows
+        rows
+        |> Array.map (Array.map string >> String.concat ", " >> sprintf "[%s]")
+        |> String.concat ", "
+        |> sprintf "[%s]"
 
     member _.Shape = Shape (numRows, numCols)
 
@@ -70,25 +63,27 @@ type Matrix<'T>(rows: list<list<'T>>) =
     member _.Columns =
         seq {
             for i in 0 .. numCols - 1 ->
-                List.map (List.item i) rows
+                Array.map (Array.item i) rows
         }
 
     static member inline (+) (a: Matrix< ^t>, b: Matrix< ^t>) : Matrix< ^t> =
         if a.Shape <> b.Shape then raise DimensionMismatch
 
-        let a = a.Rows
-        let b = b.Rows
-
-        List.map2 (List.map2 (+)) a b
+        Array.map2 (Array.map2 (+)) a.Rows b.Rows
         |> Matrix
 
     static member inline (-) (a: Matrix< ^t>, b: Matrix< ^t>) : Matrix< ^t> =
         if a.Shape <> b.Shape then raise DimensionMismatch
 
-        let a = a.Rows
-        let b = b.Rows
+        Array.map2 (Array.map2 (-)) a.Rows b.Rows
+        |> Matrix
 
-        List.map2 (List.map2 (-)) a b
+    static member inline (*) (Scalar a: Scalar< ^t>, b: Matrix< ^t>) : Matrix< ^t> =
+        Array.map (Array.map ((*) a)) b.Rows
+        |> Matrix
+
+    static member inline (*) (a: Matrix< ^t>, Scalar b: Scalar< ^t>) : Matrix< ^t> =
+        Array.map (Array.map (fun a' -> a' * b)) a.Rows
         |> Matrix
 
     static member inline (*) (a: Matrix< ^t>, b: Matrix< ^t>) : Matrix< ^t> =
@@ -98,31 +93,37 @@ type Matrix<'T>(rows: list<list<'T>>) =
 
         seq {
             for aRow in a.Rows ->
-                List.ofSeq <| seq {
+                Array.ofSeq <| seq {
                     for bCol in b.Columns ->
-                        List.sum <| List.map2 (*) aRow bCol
+                        Array.sum <| Array.map2 (*) aRow bCol
                 }
         }
-        |> List.ofSeq
+        |> Array.ofSeq
         |> Matrix
 
-(Matrix [[1; 3]; [-3; 4]])
-* (Matrix [[1; 9]; [9; 3]])
-|> printfn "%O" // [[28; 18]; [33; -15]]
+Matrix [|[|1; 3|]; [|-3; 4|]|]
+* Matrix [|[|1; 9|]; [|9; 3|]|]
+|> printfn "%O" // [[28, 18], [33, -15]]
 
-(Matrix [[1; 0]; [4; 1]; [-1; 2]])
-* (Matrix [[1; 3]; [2; -1]])
-|> printfn "%O" // [[1; 3]; [6; 11]; [3; -5]]
+Matrix [|[|1; 0|]; [|4; 1|]; [|-1; 2|]|]
+* Matrix [|[|1; 3|]; [|2; -1|]|]
+|> printfn "%O" // [[1, 3], [6, 11], [3, -5]]
 
 try
-    Matrix [[1; 2]; [3; 4; 5]]
+    Matrix [|[|1; 2|]; [|3; 4; 5|]|]
     |> printfn "%O (this should not be printed)"
 with
 | InvalidShape -> eprintfn "Invalid shape"
 
 try
-    Matrix [[1; 0]; [4; 1]; [-1; 2]]
-    * Matrix [[1; 3]; [2; -1]; [0; 0]]
-    |> printfn "%O"
+    Matrix [|[|1; 0|]; [|4; 1|]; [|-1; 2|]|]
+    * Matrix [|[|1; 3|]; [|2; -1|]; [|0; 0|]|]
+    |> printfn "%O (this should not be printed)"
 with
 | DimensionMismatch -> eprintfn "Dimension mismatch"
+
+Matrix [|[|1; 0|]; [|4; 1|]; [|-1; 2|]|] * Scalar 2
+|> printfn "%O" // [[2, 0], [8, 2], [-2, 4]]
+
+Scalar 4 * Matrix [|[|3; 0|]; [|1; 2|]|]
+|> printfn "%O" // [[12, 0], [4, 8]]
