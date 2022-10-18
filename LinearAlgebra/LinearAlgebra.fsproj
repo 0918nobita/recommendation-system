@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Fraction.fs" />
     <Compile Include="Scalar.fs" />
     <Compile Include="DimensionMismatch.fs" />
     <Compile Include="Vector.fs" />
