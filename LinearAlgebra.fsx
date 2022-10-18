@@ -7,8 +7,6 @@ exception DimensionMismatch
 type Vector<'T>(elems: 'T[]) =
     let length = Array.length elems
 
-    do if length = 0 then raise InvalidShape
-
     override _.ToString() =
         elems
         |> Array.map string
@@ -40,6 +38,8 @@ type Vector<'T>(elems: 'T[]) =
         b.Elements
         |> Array.map ((*) a)
         |> Vector
+
+let zeroVector<'a> = Vector Array.empty<'a>
 
 type Shape = Shape of rows: int * cols: int
 
