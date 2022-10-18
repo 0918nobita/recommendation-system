@@ -9,6 +9,12 @@ type Vector<'T>(elems: 'T[]) =
 
     do if length = 0 then raise InvalidShape
 
+    override _.ToString() =
+        elems
+        |> Array.map string
+        |> String.concat ", "
+        |> sprintf "[%s]"
+
     member _.Length = length
 
     member _.Elements = elems
@@ -101,6 +107,16 @@ type Matrix<'T>(rows: array<'T[]>) =
         |> Array.ofSeq
         |> Matrix
 
+    static member inline (*) (a: Matrix< ^t>, b: Vector< ^t>) : Vector< ^t> =
+        if Shape.cols a.Shape <> b.Length then raise DimensionMismatch
+
+        seq {
+            for aRow in a.Rows ->
+                Array.sum <| Array.map2 (*) aRow b.Elements
+        }
+        |> Array.ofSeq
+        |> Vector
+
 Matrix [|[|1; 3|]; [|-3; 4|]|]
 * Matrix [|[|1; 9|]; [|9; 3|]|]
 |> printfn "%O" // [[28, 18], [33, -15]]
@@ -127,3 +143,6 @@ Matrix [|[|1; 0|]; [|4; 1|]; [|-1; 2|]|] * Scalar 2
 
 Scalar 4 * Matrix [|[|3; 0|]; [|1; 2|]|]
 |> printfn "%O" // [[12, 0], [4, 8]]
+
+Matrix [|[|1; 2|]; [|0; 3|]|] * Vector [|2; 1|]
+|> printfn "%A" // [4, 3]
