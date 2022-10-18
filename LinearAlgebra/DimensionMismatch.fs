@@ -1,0 +1,3 @@
+module DimensionMismatch
+
+exception DimensionMismatch
