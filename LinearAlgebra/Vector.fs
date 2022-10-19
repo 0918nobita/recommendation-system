@@ -3,7 +3,7 @@ module Vector
 open DimensionMismatch
 open Scalar
 
-type Vector<'T>(elems: 'T[]) =
+type Vec<'T>(elems: 'T[]) =
     let length = Array.length elems
 
     override _.ToString() =
@@ -16,26 +16,36 @@ type Vector<'T>(elems: 'T[]) =
 
     member _.Elements = elems
 
-    static member inline (+) (a: Vector< ^t>, b: Vector< ^t>) : Vector< ^t> =
+    static member inline (+) (a: Vec< ^t>, b: Vec< ^t>) : Vec< ^t> =
         if a.Length <> b.Length then raise DimensionMismatch
 
         Array.map2 (+) a.Elements b.Elements
-        |> Vector
+        |> Vec
 
-    static member inline (-) (a: Vector< ^t>, b: Vector< ^t>) : Vector< ^t> =
+    static member inline (-) (a: Vec< ^t>, b: Vec< ^t>) : Vec< ^t> =
         if a.Length <> b.Length then raise DimensionMismatch
 
         Array.map2 (-) a.Elements b.Elements
-        |> Vector
+        |> Vec
 
-    static member inline (*) (a: Vector< ^t>, Scalar b: Scalar< ^t>) : Vector< ^t> =
+    static member inline (*) (a: Vec< ^t>, Scalar b: Scalar< ^t>) : Vec< ^t> =
         a.Elements
         |> Array.map (fun a' -> a' * b)
-        |> Vector
+        |> Vec
 
-    static member inline (*) (Scalar a: Scalar< ^t>, b: Vector< ^t>) : Vector< ^t> =
+    static member inline (*) (Scalar a: Scalar< ^t>, b: Vec< ^t>) : Vec< ^t> =
         b.Elements
         |> Array.map ((*) a)
-        |> Vector
+        |> Vec
 
-let zeroVector<'a> = Vector Array.empty<'a>
+    static member inline (/) (a: Vec< ^t>, Scalar b: Scalar< ^t>) : Vec< ^t> =
+        a.Elements
+        |> Array.map (fun a' -> a' / b)
+        |> Vec
+
+    static member inline (/) (Scalar a: Scalar< ^t>, b: Vec< ^t>) : Vec< ^t> =
+        b.Elements
+        |> Array.map ((/) a)
+        |> Vec
+
+let zeroVec<'a> = Vec Array.empty<'a>

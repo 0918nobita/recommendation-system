@@ -12,7 +12,7 @@ module Shape =
     let inline rows (Shape (rows, _)) = rows
     let inline cols (Shape (_, cols)) = cols
 
-type Matrix<'T>(rows: array<'T[]>) =
+type Mat<'T>(rows: array<'T[]>) =
     let numRows = Array.length rows
 
     do if Array.isEmpty rows then raise InvalidShape
@@ -37,27 +37,27 @@ type Matrix<'T>(rows: array<'T[]>) =
                 Array.map (Array.item i) rows
         }
 
-    static member inline (+) (a: Matrix< ^t>, b: Matrix< ^t>) : Matrix< ^t> =
+    static member inline (+) (a: Mat< ^t>, b: Mat< ^t>) : Mat< ^t> =
         if a.Shape <> b.Shape then raise DimensionMismatch
 
         Array.map2 (Array.map2 (+)) a.Rows b.Rows
-        |> Matrix
+        |> Mat
 
-    static member inline (-) (a: Matrix< ^t>, b: Matrix< ^t>) : Matrix< ^t> =
+    static member inline (-) (a: Mat< ^t>, b: Mat< ^t>) : Mat< ^t> =
         if a.Shape <> b.Shape then raise DimensionMismatch
 
         Array.map2 (Array.map2 (-)) a.Rows b.Rows
-        |> Matrix
+        |> Mat
 
-    static member inline (*) (Scalar a: Scalar< ^t>, b: Matrix< ^t>) : Matrix< ^t> =
+    static member inline (*) (Scalar a: Scalar< ^t>, b: Mat< ^t>) : Mat< ^t> =
         Array.map (Array.map ((*) a)) b.Rows
-        |> Matrix
+        |> Mat
 
-    static member inline (*) (a: Matrix< ^t>, Scalar b: Scalar< ^t>) : Matrix< ^t> =
+    static member inline (*) (a: Mat< ^t>, Scalar b: Scalar< ^t>) : Mat< ^t> =
         Array.map (Array.map (fun a' -> a' * b)) a.Rows
-        |> Matrix
+        |> Mat
 
-    static member inline (*) (a: Matrix< ^t>, b: Matrix< ^t>) : Matrix< ^t> =
+    static member inline (*) (a: Mat< ^t>, b: Mat< ^t>) : Mat< ^t> =
         let aCols = Shape.cols a.Shape
         let bRows = Shape.rows b.Shape
         if aCols <> bRows then raise DimensionMismatch
@@ -70,9 +70,9 @@ type Matrix<'T>(rows: array<'T[]>) =
                 }
         }
         |> Array.ofSeq
-        |> Matrix
+        |> Mat
 
-    static member inline (*) (a: Matrix< ^t>, b: Vector< ^t>) : Vector< ^t> =
+    static member inline (*) (a: Mat< ^t>, b: Vec< ^t>) : Vec< ^t> =
         if Shape.cols a.Shape <> b.Length then raise DimensionMismatch
 
         seq {
@@ -80,4 +80,4 @@ type Matrix<'T>(rows: array<'T[]>) =
                 Array.sum <| Array.map2 (*) aRow b.Elements
         }
         |> Array.ofSeq
-        |> Vector
+        |> Vec
