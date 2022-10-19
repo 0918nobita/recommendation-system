@@ -21,6 +21,8 @@ type Frac(numerator: int, denominator: int) =
 
     member _.Denominator = denominator
 
+    static member inline Zero = Frac(0, 1)
+
     static member inline (+) (a: Frac, b: Frac) =
         let denoGcd = gcd a.Denominator b.Denominator
         let aMul = b.Denominator / denoGcd

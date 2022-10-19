@@ -1,83 +1,99 @@
 module Matrix
 
 open DimensionMismatch
-open Scalar
 open Vector
 
 exception InvalidShape
 
 type Shape = Shape of rows: int * cols: int
 
-module Shape =
-    let inline rows (Shape (rows, _)) = rows
-    let inline cols (Shape (_, cols)) = cols
+type Mat<'T> =
+    | Mat of shape: Shape * rows: array<Vec<'T>>
 
-type Mat<'T>(rows: array<'T[]>) =
-    let numRows = Array.length rows
+    override this.ToString() =
+        match this with
+        | Mat (_, rows) ->
+            rows
+            |> Array.map string
+            |> String.concat ", "
+            |> sprintf "[%s]"
 
-    do if Array.isEmpty rows then raise InvalidShape
-    let numCols = Array.length (rows.[0])
+    static member inline (+) (
+        Mat (aShape, aRows): Mat< ^t>,
+        Mat (bShape, bRows): Mat< ^t>
+    ) : Mat< ^t> =
+        if aShape <> bShape then raise DimensionMismatch
 
-    do for row in rows do
-        if Array.length row <> numCols then raise InvalidShape
+        let rows = Array.map2 (+) aRows bRows
+        Mat (aShape, rows)
 
-    override _.ToString() =
-        rows
-        |> Array.map (Array.map string >> String.concat ", " >> sprintf "[%s]")
-        |> String.concat ", "
-        |> sprintf "[%s]"
+    static member inline (-) (
+        Mat (aShape, aRows): Mat< ^t>,
+        Mat (bShape, bRows): Mat< ^t>
+    ) : Mat< ^t> =
+        if aShape <> bShape then raise DimensionMismatch
 
-    member _.Shape = Shape (numRows, numCols)
+        let rows = Array.map2 (-) aRows bRows
+        Mat (aShape, rows)
 
-    member _.Rows = rows
+    static member inline (*) (
+        Mat (aShape, aRows): Mat< ^t>,
+        b: ^t
+    ) : Mat< ^t> =
+        let rows = Array.map (fun aRow -> aRow * b) aRows
+        Mat (aShape, rows)
 
-    member _.Columns =
-        seq {
-            for i in 0 .. numCols - 1 ->
-                Array.map (Array.item i) rows
-        }
-
-    static member inline (+) (a: Mat< ^t>, b: Mat< ^t>) : Mat< ^t> =
-        if a.Shape <> b.Shape then raise DimensionMismatch
-
-        Array.map2 (Array.map2 (+)) a.Rows b.Rows
-        |> Mat
-
-    static member inline (-) (a: Mat< ^t>, b: Mat< ^t>) : Mat< ^t> =
-        if a.Shape <> b.Shape then raise DimensionMismatch
-
-        Array.map2 (Array.map2 (-)) a.Rows b.Rows
-        |> Mat
-
-    static member inline (*) (Scalar a: Scalar< ^t>, b: Mat< ^t>) : Mat< ^t> =
-        Array.map (Array.map ((*) a)) b.Rows
-        |> Mat
-
-    static member inline (*) (a: Mat< ^t>, Scalar b: Scalar< ^t>) : Mat< ^t> =
-        Array.map (Array.map (fun a' -> a' * b)) a.Rows
-        |> Mat
-
-    static member inline (*) (a: Mat< ^t>, b: Mat< ^t>) : Mat< ^t> =
-        let aCols = Shape.cols a.Shape
-        let bRows = Shape.rows b.Shape
-        if aCols <> bRows then raise DimensionMismatch
+    static member inline (*) (
+        Mat (Shape(_, numACols), aRows): Mat< ^t>,
+        b: Vec< ^t>
+    ) : Vec< ^t> =
+        if numACols <> Vec.length b then raise DimensionMismatch
 
         seq {
-            for aRow in a.Rows ->
-                Array.ofSeq <| seq {
-                    for bCol in b.Columns ->
-                        Array.sum <| Array.map2 (*) aRow bCol
-                }
-        }
-        |> Array.ofSeq
-        |> Mat
-
-    static member inline (*) (a: Mat< ^t>, b: Vec< ^t>) : Vec< ^t> =
-        if Shape.cols a.Shape <> b.Length then raise DimensionMismatch
-
-        seq {
-            for aRow in a.Rows ->
-                Array.sum <| Array.map2 (*) aRow b.Elements
+            for aRow in aRows -> aRow * b
         }
         |> Array.ofSeq
         |> Vec
+
+    static member inline (*) (
+        Mat (Shape (numARows, numACols), aRows): Mat< ^t>,
+        Mat (Shape (numBRows, numBCols), bRows): Mat< ^t>
+    ) : Mat< ^t> =
+        if numACols <> numBRows then raise DimensionMismatch
+
+        let bCols =
+            seq {
+                for i in 0 .. numBCols - 1 ->
+                    Array.map (Vec.item i) bRows
+            }
+            |> Array.ofSeq
+            |> Array.map Vec
+
+        let rows =
+            seq {
+                for aRow in aRows ->
+                    seq {
+                        for bCol in bCols -> aRow * bCol
+                    }
+                    |> Array.ofSeq
+                    |> Vec
+            }
+            |> Array.ofSeq
+
+        Mat(Shape(numARows, numBCols), rows)
+
+    static member inline (/) (
+        Mat (aShape, aRows): Mat< ^t>,
+        b: ^t
+    ) : Mat< ^t> =
+        let rows = Array.map (fun aRow -> aRow / b) aRows
+        Mat (aShape, rows)
+
+module Mat =
+    let inline make (rows: array< ^t[]>) =
+        if Array.isEmpty rows then raise InvalidShape
+        let numCols = rows.[0].Length
+        for row in rows do
+            if row.Length <> numCols then raise InvalidShape
+        let rows = Array.map Vec rows
+        Mat (Shape (rows.Length, numCols), rows)

@@ -1,51 +1,56 @@
 module Vector
 
 open DimensionMismatch
-open Scalar
 
-type Vec<'T>(elems: 'T[]) =
-    let length = Array.length elems
+type Vec<'T> =
+    | Vec of 'T[]
 
-    override _.ToString() =
-        elems
-        |> Array.map string
-        |> String.concat ", "
-        |> sprintf "[%s]"
+    override this.ToString() =
+        match this with
+        | Vec elems ->
+            elems
+            |> Array.map string
+            |> String.concat ", "
+            |> sprintf "[%s]"
 
-    member _.Length = length
+    static member inline Zero: Vec<'T> = Vec Array.empty
 
-    member _.Elements = elems
-
-    static member inline (+) (a: Vec< ^t>, b: Vec< ^t>) : Vec< ^t> =
+    static member inline (+) (Vec a: Vec< ^t>, Vec b: Vec< ^t>) : Vec< ^t> =
         if a.Length <> b.Length then raise DimensionMismatch
 
-        Array.map2 (+) a.Elements b.Elements
+        Array.map2 (+) a b
         |> Vec
 
-    static member inline (-) (a: Vec< ^t>, b: Vec< ^t>) : Vec< ^t> =
+    static member inline (-) (Vec a: Vec< ^t>, Vec b: Vec< ^t>) : Vec< ^t> =
         if a.Length <> b.Length then raise DimensionMismatch
 
-        Array.map2 (-) a.Elements b.Elements
+        Array.map2 (-) a b
         |> Vec
 
-    static member inline (*) (a: Vec< ^t>, Scalar b: Scalar< ^t>) : Vec< ^t> =
-        a.Elements
+    static member inline (*) (Vec a: Vec< ^t>, b: ^t) : Vec< ^t> =
+        a
         |> Array.map (fun a' -> a' * b)
         |> Vec
 
-    static member inline (*) (Scalar a: Scalar< ^t>, b: Vec< ^t>) : Vec< ^t> =
-        b.Elements
-        |> Array.map ((*) a)
-        |> Vec
+    static member inline (*) (Vec a: Vec< ^t>, Vec b: Vec< ^t>) : ^t =
+        if a.Length <> b.Length then raise DimensionMismatch
 
-    static member inline (/) (a: Vec< ^t>, Scalar b: Scalar< ^t>) : Vec< ^t> =
-        a.Elements
+        Array.map2 (*) a b
+        |> Array.sum
+
+    static member inline (/) (Vec a: Vec< ^t>, b: ^t) : Vec< ^t> =
+        a
         |> Array.map (fun a' -> a' / b)
         |> Vec
 
-    static member inline (/) (Scalar a: Scalar< ^t>, b: Vec< ^t>) : Vec< ^t> =
-        b.Elements
-        |> Array.map ((/) a)
-        |> Vec
+module Vec =
+    let inline length< ^t> (Vec a: Vec< ^t>) : int = Array.length a
 
-let zeroVec<'a> = Vec Array.empty<'a>
+    let inline item (i: int) (Vec elems: Vec< ^t>) : ^t = elems.[i]
+    
+    let inline sum (Vec elems: Vec< ^t>): ^t = Array.sum elems
+
+    let inline map (f: ^a -> ^b) (Vec elems: Vec< ^a>) : Vec< ^b> =
+        elems
+        |> Array.map f
+        |> Vec

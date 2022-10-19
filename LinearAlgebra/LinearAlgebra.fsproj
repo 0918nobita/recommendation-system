@@ -7,10 +7,10 @@
 
   <ItemGroup>
     <Compile Include="Fraction.fs" />
-    <Compile Include="Scalar.fs" />
     <Compile Include="DimensionMismatch.fs" />
     <Compile Include="Vector.fs" />
     <Compile Include="Matrix.fs" />
+    <Compile Include="SweepingOutMethod.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
